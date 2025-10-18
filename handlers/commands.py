@@ -1,3 +1,6 @@
+import random
+
+
 def register_commands(bot):
     @bot.message_handler(commands=["start"])
     def welcome(message):
