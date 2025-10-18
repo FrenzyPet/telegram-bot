@@ -50,6 +50,7 @@ jobs:
             if [ -d "telegram-bot" ]; then
               echo "📁 Репозиторий уже существует, обновляем..."
               cd telegram-bot
+              git config --global --add safe.directory /home/frenzy/projects/telegram-bot
               git pull origin main
             else
               echo "📁 Клонируем репозиторий..."
