@@ -3,7 +3,7 @@ name: CI for Telegram Bot
 on: [push, pull_request]
 
 jobs:
-  test:
+  init_check:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,16 +28,16 @@ jobs:
           python -m py_compile bot.py
           echo "✅ Syntax is correct"
 
-  deploy-test:
+  deploy:
     runs-on: ubuntu-latest
-    needs: test
+    needs: init_check
     if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Test SSH connection and create test file
+      - name: Deploy to VPS
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -45,12 +45,22 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            echo "🚀 Успешно подключились к серверу!"
-            echo "Текущая директория: $(pwd)"
-            echo "Содержимое домашней директории:"
-            ls -la
-            echo "Создаем тестовый файл..."
-            echo "Deploy test from GitHub Actions - $(date)" > deploy_test.txt
-            echo "Файл создан! Проверяем:"
-            cat deploy_test.txt
-            echo "✅ Деплой тест прошел успешно!"
+            mkdir -p ~/projects
+            cd ~/projects
+
+            if [ -d "telegram-bot" ]; then
+              echo "📁 Репозиторий уже существует, обновляем..."
+              cd telegram-bot
+              git pull origin main
+            else
+              echo "📁 Клонируем репозиторий..."
+              git clone https://github.com/${{ github.repository }}.git telegram-bot
+              cd telegram-bot
+            fi
+
+            echo "📦 Устанавливаем зависимости Python..."
+            pip3 install -r requirements.txt
+
+            echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" > .env
+
+            echo "✅ Файлы готовы!"
