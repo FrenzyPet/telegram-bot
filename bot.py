@@ -24,7 +24,7 @@ def welcome(message):
 @bot.message_handler(func=lambda message: "hello" in message.text)
 def greeting(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "hello")
+    bot.send_message(chat_id, "hello, gay ❤️")
 
 
 @bot.message_handler(func=lambda message: True)
