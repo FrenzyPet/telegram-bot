@@ -45,8 +45,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            mkdir -p ~/projects
-            cd ~/projects
+            cd /home/frenzy/projects
 
             if [ -d "telegram-bot" ]; then
               echo "📁 Репозиторий уже существует, обновляем..."
@@ -73,13 +72,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            cd ~/projects/telegram-bot
+            cd /home/frenzy/projects/telegram-bot
 
             echo "🔧 Настраиваем systemd service..."
 
             mkdir -p logs
 
-            sed "s/{{USER}}/${{ secrets.SERVER_USER }}/g" deploy/telegram-bot.service.template | sudo tee /etc/systemd/system/telegram-bot.service > /dev/null
+            sed "s/{{USER}}/frenzy/g" config/telegram-bot.service.template | sudo tee /etc/systemd/system/telegram-bot.service > /dev/null
 
             sudo chmod 644 /etc/systemd/system/telegram-bot.service
 
