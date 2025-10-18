@@ -27,3 +27,29 @@ jobs:
         run: |
           python -m py_compile bot.py
           echo "✅ Syntax is correct"
+
+  deploy-test:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test SSH connection and create test file
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "🚀 Успешно подключились к серверу!"
+            echo "Текущая директория: $(pwd)"
+            echo "Содержимое домашней директории:"
+            ls -la
+            echo "Создаем тестовый файл..."
+            echo "Deploy test from GitHub Actions - $(date)" > deploy_test.txt
+            echo "Файл создан! Проверяем:"
+            cat deploy_test.txt
+            echo "✅ Деплой тест прошел успешно!"
