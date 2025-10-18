@@ -1,0 +1,16 @@
+[Unit]
+Description=Frenzy Assistant
+After=network.target
+
+[Service]
+Type=simple
+User={{USER}}
+WorkingDirectory=/home/{{USER}}/projects/telegram-bot
+ExecStart=/usr/bin/python3 bot.py
+Restart=always
+RestartSec=5
+StandardOutput=file:/home/{{USER}}/projects/telegram-bot/logs/bot.log
+StandardError=file:/home/{{USER}}/projects/telegram-bot/logs/bot-error.log
+
+[Install]
+WantedBy=multi-user.target
