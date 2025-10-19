@@ -1,3 +1,4 @@
 pyTelegramBotApi==4.29.1
 python-dotenv==1.1.1
 openai==2.5.0
+requests==2.32.5
