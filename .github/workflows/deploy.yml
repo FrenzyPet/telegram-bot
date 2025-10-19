@@ -92,6 +92,7 @@ jobs:
 
             echo "🔐 Записываем .env"
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" > .env
+            echo "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" > .env
 
             echo "✅ Файлы готовы!"
 
