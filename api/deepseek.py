@@ -15,6 +15,7 @@ client = OpenAI(
 
 
 def getDeepseekAnswer(prompt):
+    request = prompt + ". Отвечай на русском языке"
     completion = client.chat.completions.create(
         model="alibaba/tongyi-deepresearch-30b-a3b:free",
         messages=[{"role": "user", "content": prompt}],
