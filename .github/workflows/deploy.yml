@@ -69,8 +69,8 @@ jobs:
             fi
 
             echo "📦 Устанавливаем зависимости в venv..."
-            ./venv/bin/pip install --upgrade pip
-            ./venv/bin/pip install -r requirements.txt
+            pip install --upgrade pip
+            pip install -r requirements.txt
 
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" > .env
 
