@@ -6,11 +6,12 @@ After=network.target
 Type=simple
 User={{USER}}
 WorkingDirectory=/home/{{USER}}/projects/telegram-bot
-ExecStart=/usr/bin/python3 bot.py
+ExecStart=/home/{{USER}}/projects/telegram-bot/venv/bin/python /home/{{USER}}/projects/telegram-bot/bot.py
 Restart=always
 RestartSec=5
-StandardOutput=file:/home/{{USER}}/projects/telegram-bot/logs/bot.log
-StandardError=file:/home/{{USER}}/projects/telegram-bot/logs/bot-error.log
+EnvironmentFile=/home/{{USER}}/projects/telegram-bot/.env
+StandardOutput=append:/home/{{USER}}/projects/telegram-bot/logs/bot.log
+StandardError=append:/home/{{USER}}/projects/telegram-bot/logs/bot-error.log
 
 [Install]
 WantedBy=multi-user.target
