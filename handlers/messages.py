@@ -1,4 +1,4 @@
-from api.deepseek import getDeepseekAnswer
+from api.deepseek import get_deepseek_answer
 
 HELLO_MESSAGES = [
     "hello",
@@ -10,6 +10,7 @@ HELLO_MESSAGES = [
     "здарова",
     "дарова",
     "здравия желаю",
+    "добрый день",
 ]
 
 SALAM_MESSAGES = ["салам", "салам алейкум", "салям алейкум"]
@@ -25,7 +26,7 @@ def register_message_handlers(bot):
         )
     )
     def greeting(message):
-        bot.send_message(message.chat.id, "здравия желаю 🫡")
+        bot.send_message(message.chat.id, "Здравия желаю, Товарищ 🫡 !")
 
     # салам алейкум
     @bot.message_handler(
@@ -36,7 +37,7 @@ def register_message_handlers(bot):
     def salam(message):
         bot.send_message(
             message.chat.id,
-            """привет! шучу - ваалейкум ассалам ☝🏽""",
+            """ваалейкум ассалам ☝🏽""",
         )
 
     # нейросеть
@@ -46,7 +47,7 @@ def register_message_handlers(bot):
         )
     )
     def deepseek(message):
-        prompt = getDeepseekAnswer(message.text)
+        prompt = get_deepseek_answer(message.text)
         bot.reply_to(
             message,
             prompt,
