@@ -81,6 +81,8 @@ jobs:
             DEPLOY_DIR="/home/${DEPLOY_USER}/projects/telegram-bot"
             TAR_FILE="${DEPLOY_DIR}/telegram-bot.tar"
             LOG_DIR="${DEPLOY_DIR}/logs"
+            IMAGE_NAME="telegram-bot"
+            IMAGE_TAG="test"
 
             echo "Ensure deploy dir exists"
             mkdir -p "${DEPLOY_DIR}"
