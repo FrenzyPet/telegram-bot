@@ -1,6 +1,14 @@
-name: CI for Telegram Bot
+name: CI/CD Docker Deploy (simple .tar)
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE_NAME: telegram-bot
+  IMAGE_TAG: latest
 
 jobs:
   init_check:
@@ -37,7 +45,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to VPS
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE_NAME:$IMAGE_TAG .
+
+      - name: Save Docker image to tar
+        run: |
+          docker save $IMAGE_NAME:$IMAGE_TAG -o telegram-bot.tar
+          ls -lh telegram-bot.tar
+
+      - name: Upload image tar to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: telegram-bot.tar
+          target: /home/${{ secrets.SERVER_USER }}/projects/telegram-bot/
+
+      - name: Deploy on server (load image, write .env, run container)
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -46,80 +76,44 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -euo pipefail
-            cd /home/frenzy/projects
 
-            # Клонируем или обновляем репозиторий
-            if [ -d "telegram-bot" ]; then
-              echo "📁 Репозиторий уже существует, обновляем..."
-              cd telegram-bot
-              git config --global --add safe.directory $(pwd)
-              git reset --hard origin/main
-              git clean -fd
-              git pull origin main
-            else
-              echo "📁 Клонируем репозиторий..."
-              git clone https://github.com/${{ github.repository }}.git telegram-bot
-              cd telegram-bot
-            fi
+            DEPLOY_USER="${{ secrets.SERVER_USER }}"
+            DEPLOY_DIR="/home/${DEPLOY_USER}/projects/telegram-bot"
+            TAR_FILE="${DEPLOY_DIR}/telegram-bot.tar"
+            LOG_DIR="${DEPLOY_DIR}/logs"
 
-            echo "🔧 Убедимся, что мы в нужной папке: $(pwd)"
+            echo "Ensure deploy dir exists"
+            mkdir -p "${DEPLOY_DIR}"
+            mkdir -p "${LOG_DIR}"
+            chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "$(dirname "${DEPLOY_DIR}")" || true
+            chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${DEPLOY_DIR}" || true
 
-            # Создаём виртуальное окружение
-            echo "🐍 Создаём venv (если ещё нет)..."
-            if [ ! -d "venv" ]; then
-              if ! python3 -m venv venv 2>/tmp/venv.err; then
-                echo "⚠️ python3 -m venv не сработал, используем virtualenv"
-                python3 -m pip install --user virtualenv
-                export PATH="$HOME/.local/bin:$PATH"
-                ~/.local/bin/virtualenv venv
-              fi
-            fi
+            cd "${DEPLOY_DIR}"
 
-            # Проверяем, есть ли pip внутри venv, если нет — ставим get-pip.py
-            if [ ! -f "venv/bin/pip" ]; then
-              echo "⚠️ pip отсутствует в venv, устанавливаем..."
-              curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
-              ./venv/bin/python /tmp/get-pip.py
-            fi
+            echo "Stopping old container (if exists)"
+            docker stop telegram-bot || true
+            docker rm telegram-bot || true
 
-            echo "📦 Устанавливаем зависимости в venv..."
-            ./venv/bin/pip install --upgrade pip
-            ./venv/bin/pip install -r requirements.txt
+            echo "Loading image from tar (may overwrite local image)"
+            docker load -i "${TAR_FILE}"
 
-            echo "🔎 Проверяем окружение..."
-            ./venv/bin/python -m pip list
-            ./venv/bin/python -c "import telebot, openai; print('✅ Импорты работают')"
-
-            echo "🔐 Записываем .env"
+            echo "🪄 Writing .env file line by line..."
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" > .env
             echo "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> .env
 
-            echo "✅ Файлы готовы!"
+            chmod 600 "${DEPLOY_DIR}/.env"
+            chown "${DEPLOY_USER}:${DEPLOY_USER}" "${DEPLOY_DIR}/.env" || true
 
-      - name: Setup systemd service
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            set -euo pipefail
-            cd /home/frenzy/projects/telegram-bot
+            echo "Starting container"
+            docker run -d \
+              --name telegram-bot \
+              --restart always \
+              --env-file "${DEPLOY_DIR}/.env" \
+              --workdir /app \
+              -v "${DEPLOY_DIR}/logs":/app/logs \
+              $IMAGE_NAME:$IMAGE_TAG
 
-            echo "🔧 Настраиваем systemd service..."
-            mkdir -p logs
-
-            # Подставляем пользователя, который владеет venv (обычно deploy или frenzy)
-            sed "s/{{USER}}/frenzy/g" config/telegram-bot.service.template | sudo tee /etc/systemd/system/telegram-bot.service > /dev/null
-            sudo chmod 644 /etc/systemd/system/telegram-bot.service
-
-            echo "🔄 Перезагружаем systemd..."
-            sudo systemctl daemon-reload
-            sudo systemctl enable telegram-bot.service
-
-            echo "🚀 Перезапускаем бота..."
-            sudo systemctl restart telegram-bot.service
-
-            echo "📊 Проверяем статус..."
-            sudo systemctl status telegram-bot.service --no-pager
+            # short wait and status
+            sleep 3
+            echo "Container list (filtered):"
+            docker ps --filter "name=telegram-bot" --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
