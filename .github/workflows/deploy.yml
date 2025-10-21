@@ -98,6 +98,7 @@ jobs:
 
             echo "Loading image from tar (may overwrite local image)"
             docker load -i "${TAR_FILE}"
+            docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
 
             echo "🪄 Writing .env file line by line..."
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" > .env
