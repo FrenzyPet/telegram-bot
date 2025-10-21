@@ -55,7 +55,7 @@ jobs:
       - name: Save Docker image to tar
         run: |
           docker save $IMAGE_NAME:$IMAGE_TAG -o telegram-bot.tar
-          ls -lh telegram-bot.tar
+          chmod 644 telegram-bot.tar
 
       - name: Upload image tar to server
         uses: appleboy/scp-action@v0.1.7
