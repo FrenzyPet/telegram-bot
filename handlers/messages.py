@@ -26,7 +26,7 @@ def register_message_handlers(bot):
         )
     )
     def greeting(message):
-        bot.send_message(message.chat.id, "Здравия желаю, Товарищ 🫡 ! И иди нахуй")
+        bot.send_message(message.chat.id, "Здравия желаю, Товарищ 🫡 !")
 
     # салам алейкум
     @bot.message_handler(
