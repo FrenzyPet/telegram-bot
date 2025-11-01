@@ -14,6 +14,7 @@ if not TOKEN:
 
 bot = TeleBot(TOKEN)
 
+from database.connection import engine
 
 register_commands(bot)
 register_message_handlers(bot)
