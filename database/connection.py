@@ -1,16 +1,23 @@
-from sqlalchemy import create_engine
 import os
-from .models import Base  # импортируем Base и модели
+from sqlalchemy import create_engine
+from .models import Base
+
+
+def get_database_url():
+    """Возвращает URL для подключения к БД в зависимости от окружения"""
+    if os.getenv("DATABASE_URL"):
+        return os.getenv("DATABASE_URL")
+
+    return "postgresql://bot_user:bot_pass@localhost:5432/bot_db"
+
 
 print("🔄 Подключаюсь к базе данных...")
 
-# Создаем путь к БД внутри папки database
-db_path = os.path.join(os.path.dirname(__file__), "bot_database.db")
-engine = create_engine(f"sqlite:///{db_path}")
+db_url = get_database_url()
+engine = create_engine(db_url)
 
-# Создаем таблицы
 Base.metadata.create_all(engine)
 
 print("✅ База данных подключена!")
 print("✅ Таблицы созданы!")
-print(f"📍 Файл: {db_path}")
+print(f"📍 PostgreSQL: {db_url}")
