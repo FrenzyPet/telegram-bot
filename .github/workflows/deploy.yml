@@ -67,7 +67,7 @@ jobs:
           source: telegram-bot.tar
           target: /home/${{ secrets.SERVER_USER }}/projects/telegram-bot/
 
-      - name: Deploy on server (load image, write .env, run container)
+      - name: Deploy on server (docker-compose)
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -80,43 +80,27 @@ jobs:
             DEPLOY_USER="${{ secrets.SERVER_USER }}"
             DEPLOY_DIR="/home/${DEPLOY_USER}/projects/telegram-bot"
             TAR_FILE="${DEPLOY_DIR}/telegram-bot.tar"
-            LOG_DIR="${DEPLOY_DIR}/logs"
-            IMAGE_NAME="telegram-bot"
-            IMAGE_TAG="test"
-
-            echo "Ensure deploy dir exists"
-            mkdir -p "${DEPLOY_DIR}"
-            mkdir -p "${LOG_DIR}"
-            chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "$(dirname "${DEPLOY_DIR}")" || true
-            chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${DEPLOY_DIR}" || true
 
             cd "${DEPLOY_DIR}"
 
-            echo "Stopping old container (if exists)"
-            docker stop telegram-bot || true
-            docker rm telegram-bot || true
+            echo "Stopping old containers"
+            docker-compose -f docker-compose.prod.yml down || true
 
-            echo "Loading image from tar (may overwrite local image)"
+            echo "Loading bot image from tar"
             docker load -i "${TAR_FILE}"
-            docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
+
+            echo "Writing .env for docker-compose"
 
             echo "🪄 Writing .env file line by line..."
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" > .env
             echo "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> .env
+            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
 
-            chmod 600 "${DEPLOY_DIR}/.env"
-            chown "${DEPLOY_USER}:${DEPLOY_USER}" "${DEPLOY_DIR}/.env" || true
+            chmod 600 .env
 
-            echo "Starting container"
-            docker run -d \
-              --name telegram-bot \
-              --restart always \
-              --env-file "${DEPLOY_DIR}/.env" \
-              --workdir /app \
-              -v "${DEPLOY_DIR}/logs":/app/logs \
-              $IMAGE_NAME:$IMAGE_TAG
+            echo "Starting with docker-compose"
+            docker-compose -f docker-compose.prod.yml up -d
 
-            # short wait and status
-            sleep 3
-            echo "Container list (filtered):"
-            docker ps --filter "name=telegram-bot" --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+            echo "Deployment complete!"
+            docker-compose -f docker-compose.prod.yml ps
