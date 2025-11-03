@@ -1,4 +1,4 @@
-name: CI/CD Docker Deploy (simple .tar)
+name: tg bot CI/CD
 
 on:
   push:
@@ -42,42 +42,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        run: |
-          docker build -t $IMAGE_NAME:$IMAGE_TAG .
-
-      - name: Save Docker image to tar
-        run: |
-          docker save $IMAGE_NAME:$IMAGE_TAG -o telegram-bot.tar
-          chmod 644 telegram-bot.tar
-
-      - name: Upload image tar to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: telegram-bot.tar
-          target: /home/${{ secrets.SERVER_USER }}/projects/telegram-bot/
-
-      - name: Upload docker-compose file to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: 'docker-compose.prod.yml'
-          target: /home/${{ secrets.SERVER_USER }}/projects/telegram-bot/
-
-      - name: Deploy on server (docker-compose)
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -85,21 +50,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            set -euo pipefail
+            cd /home/${{ secrets.SERVER_USER }}/projects/telegram-bot
 
-            DEPLOY_USER="${{ secrets.SERVER_USER }}"
-            DEPLOY_DIR="/home/${DEPLOY_USER}/projects/telegram-bot"
-            TAR_FILE="${DEPLOY_DIR}/telegram-bot.tar"
-
-            cd "${DEPLOY_DIR}"
-
-            echo "Stopping old containers"
-            docker-compose -f docker-compose.prod.yml down || true
-
-            echo "Loading bot image from tar"
-            docker load -i "${TAR_FILE}"
-
-            echo "Writing .env for docker-compose"
+            git pull origin main
 
             echo "🪄 Writing .env file line by line..."
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" > .env
@@ -107,10 +60,20 @@ jobs:
             echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
             echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
 
-            chmod 600 .env
+            echo "✅ Ensuring Docker Compose V2 plugin is installed..."
+            if ! docker compose version >/dev/null 2>&1; then
+              echo "Installing Docker Compose V2 plugin..."
+              sudo apt-get update
+              sudo apt-get install -y docker-compose-plugin
+            fi
 
-            echo "Starting with docker-compose"
-            docker-compose -f docker-compose.prod.yml up -d
+            echo "Stopping old containers"
+            docker compose -f docker-compose.prod.yml down || true
+
+            echo "Starting with docker compose"
+            docker compose -f docker-compose.prod.yml up -d --build
 
             echo "Deployment complete!"
-            docker-compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml ps
+
+            echo "✅ Deployed!"
